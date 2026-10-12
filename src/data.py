@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -58,6 +59,17 @@ def hide_labels(y_train, fraction, seed):
     return y_semi, n_labeled
 
 
+def scale_features(X_train, X_test):
+    """Standardize each feature to mean 0 and standard deviation 1.
+
+    The mean and standard deviation come from the training set only, and the
+    same transformation is then applied to the test set. Fitting on the test
+    set would leak information about it into the model.
+    """
+    scaler = StandardScaler().fit(X_train)
+    return scaler.transform(X_train), scaler.transform(X_test)
+
+
 if __name__ == "__main__":
     # Quick check: split sizes, then how many anomalies get labeled per fraction (seed 1)
     for name in DATASET_NAMES:
@@ -68,3 +80,6 @@ if __name__ == "__main__":
         counts = [hide_labels(y_train, f, seed=1)[1] for f in LABEL_FRACTIONS]
         print(" " * 19 + "labeled at " + ", ".join(
             f"{int(f * 100)}%: {c}" for f, c in zip(LABEL_FRACTIONS, counts)))
+        X_train_s, X_test_s = scale_features(X_train, X_test)
+        print(" " * 19 + f"after scaling: train mean {X_train_s.mean():.2f}, train std {X_train_s.std():.2f}, "
+              f"test mean {X_test_s.mean():.2f}")
