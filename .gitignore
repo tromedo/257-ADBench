@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Data (downloaded by script, not committed)
+data/*.npz
+
+# OS
+.DS_Store
