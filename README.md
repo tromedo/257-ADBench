@@ -63,6 +63,13 @@ With seed 1 you should see, for example, `annthyroid train= 5040 (anomalies 374)
 
 In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`.
 
+## Data Exploration
+
+`src/data_exploration.ipynb` looks at the six datasets before any training: dataset sizes, anomaly rates, PCA plots of how separable the anomalies are, the most informative features, and a check of the feature scaling.
+
+To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
+
+
 ## Adding your algorithm
 
 Every algorithm uses the shared data module and the shared results format, so all results
