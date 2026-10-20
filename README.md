@@ -31,6 +31,13 @@ results/   raw results CSVs and plots
 
 ## Setup (one time)
 
+Prerequisites:
+
+* Python 3.14 (`python3 --version`). The library versions in `requirements.txt` are pinned
+  to match the machine the final results are run on, so the same seed gives the same numbers.
+* Mac only: XGBoost needs the OpenMP runtime. Install it once with `brew install libomp`,
+  otherwise importing XGBoost fails with "libxgboost.dylib could not be loaded".
+
 1. Clone the repo and go into it:
 
 ```
