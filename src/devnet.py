@@ -5,8 +5,8 @@ Networks", KDD 2019. ADBench uses the authors' Keras/TensorFlow 1 code
 (adbench/baseline/DevNet/run.py). That code does not run on current Python, so
 this file reproduces it in PyTorch with the same architecture and settings.
 
-This file currently holds the network and the deviation loss. Training and
-scoring are added separately.
+This file currently holds the network, the deviation loss and the batch
+sampler. Training and scoring are added separately.
 """
 
 import numpy as np
@@ -18,6 +18,7 @@ HIDDEN_UNITS = 20          # network_depth=2: one hidden layer of 20 ReLU units
 L2_WEIGHT = 0.01           # kernel_regularizer=l2(0.01) on the hidden layer
 CONFIDENCE_MARGIN = 5.0    # anomalies should score at least 5 std above normal
 N_REFERENCE = 5000         # number of reference scores drawn from N(0, 1)
+BATCH_SIZE = 512           # samples per training batch
 
 
 class DevNetModel(nn.Module):
@@ -60,6 +61,27 @@ def deviation_loss(scores, labels, reference):
     return torch.mean((1 - labels) * inlier_loss + labels * outlier_loss)
 
 
+def sample_batch(X, y, rng, batch_size=BATCH_SIZE):
+    """Build one balanced training batch, as in the original input_batch_generation_sup.
+
+    Even positions take a random unlabeled sample (label 0), odd positions take a
+    random labeled anomaly (label 1). Sampling is with replacement, so even a
+    single labeled anomaly fills half of every batch.
+
+    X: training features, y: training labels after hide_labels (1 = labeled anomaly)
+    rng: numpy random Generator
+    """
+    inlier_idx = np.where(y == 0)[0]
+    outlier_idx = np.where(y == 1)[0]
+
+    idx = np.empty(batch_size, dtype=int)
+    idx[0::2] = rng.choice(inlier_idx, size=len(idx[0::2]))
+    idx[1::2] = rng.choice(outlier_idx, size=len(idx[1::2]))
+    labels = np.tile([0.0, 1.0], batch_size // 2 + 1)[:batch_size]
+
+    return torch.tensor(X[idx], dtype=torch.float32), torch.tensor(labels, dtype=torch.float32), idx
+
+
 if __name__ == "__main__":
     # Sanity checks on the loss with hand-picked scores
     ref = make_reference(seed=1)
@@ -79,3 +101,20 @@ if __name__ == "__main__":
     x = torch.zeros(4, 6)
     print("output shape for 4 samples:", tuple(model(x).shape))
     print(f"parameters: {sum(p.numel() for p in model.parameters())}")
+
+    # Sanity checks on the batch sampler with real data: Annthyroid, 1% labeled
+    from data import hide_labels, load_dataset, split_data
+
+    X, y = load_dataset("annthyroid")
+    X_train, _, y_train, _ = split_data(X, y, seed=1)
+    y_semi, n_labeled = hide_labels(y_train, 0.01, seed=1)
+
+    xb, yb, idx = sample_batch(X_train, y_semi, np.random.default_rng(1))
+    print(f"\nbatch features {tuple(xb.shape)}, labels {tuple(yb.shape)}")
+    print(f"labeled anomalies in batch: {int(yb.sum())} of {len(yb)} "
+          f"(drawn from {n_labeled} distinct labeled patients: {len(set(idx[1::2]))} used)")
+    print(f"unlabeled samples in batch: {int((yb == 0).sum())}, "
+          f"all from the unlabeled pool: {bool((y_semi[idx[0::2]] == 0).all())}")
+    print(f"hidden anomalies that landed in the unlabeled half: {int(y_train[idx[0::2]].sum())}")
+    _, _, idx_again = sample_batch(X_train, y_semi, np.random.default_rng(1))
+    print(f"same seed gives the same batch: {bool((idx == idx_again).all())}")
