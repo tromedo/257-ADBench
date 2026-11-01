@@ -9,11 +9,14 @@ Run from the repo root:
     python src/plot_results.py
 """
 
+import math
+
 import matplotlib
 
 matplotlib.use("Agg")  # write image files, no window needed
 import matplotlib.pyplot as plt
 
+from data import load_dataset
 from load_results import load_all_results, summarize
 from results import RESULTS_DIR
 
@@ -37,6 +40,13 @@ PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100",
 KNOWN_ORDER = ["XGBOD", "DevNet", "XGBoost", "RandomForest", "ECOD", "IForest"]
 MARKERS = {"semi-supervised": "o", "supervised": "s"}
 TEXT, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
+BASELINE = "#8a8984"  # neutral gray for the random-guess reference line
+
+
+def anomaly_ratio(dataset):
+    """Share of anomalies in a dataset: the AUC-PR score of a random ranking."""
+    _, y = load_dataset(dataset)
+    return y.mean()
 
 
 def algorithm_colors(algorithms):
@@ -71,6 +81,9 @@ def plot_metric(df, metric):
                         color=colors[algorithm], linewidth=2,
                         marker=MARKERS.get(category[algorithm], "o"), markersize=6,
                         markeredgecolor="white", markeredgewidth=1.2, zorder=3)
+        if metric == "auc_pr":
+            ax.axhline(anomaly_ratio(dataset), color=BASELINE, linewidth=1.2,
+                       linestyle=(0, (1, 2)), zorder=1)
         ax.set_title(DATASET_TITLES[dataset], color=TEXT, fontsize=12, loc="left")
         ax.set_ylim(0, 1.02)
         ax.set_xticks(range(len(fractions)))
@@ -99,18 +112,26 @@ def plot_metric(df, metric):
                           markeredgecolor="white", markeredgewidth=1.2)
             label = f"{algorithm} ({category[algorithm]})"
         handles.append((h, label))
+    if metric == "auc_pr":
+        h, = plt.plot([], [], color=BASELINE, linewidth=1.2, linestyle=(0, (1, 2)))
+        handles.append((h, "Random guess (anomaly ratio)"))
+    # One legend row for up to 6 entries, otherwise wrap onto two rows
+    ncol = len(handles) if len(handles) <= 6 else math.ceil(len(handles) / 2)
+    top = 0.935 if len(handles) <= 6 else 0.905
     fig.legend([h for h, _ in handles], [l for _, l in handles], loc="upper center",
-               ncol=len(handles), frameon=False, fontsize=9, bbox_to_anchor=(0.5, 0.955))
+               ncol=ncol, frameon=False, fontsize=9, bbox_to_anchor=(0.5, 0.955))
     fig.suptitle(f"{METRIC_LABELS[metric]} vs fraction of labeled anomalies",
                  x=0.01, ha="left", fontsize=14, color=TEXT)
-    fig.tight_layout(rect=(0, 0, 1, 0.935))
+    fig.tight_layout(rect=(0, 0, 1, top))
     return fig
 
 
 if __name__ == "__main__":
     FIGURES_DIR.mkdir(exist_ok=True)
     results = load_all_results()
-    fig = plot_metric(results, "auc_roc")
-    out = FIGURES_DIR / "auc_roc_vs_label_fraction.png"
-    fig.savefig(out, dpi=200)
-    print(f"Saved {out}")
+    for metric in ("auc_roc", "auc_pr"):
+        fig = plot_metric(results, metric)
+        out = FIGURES_DIR / f"{metric}_vs_label_fraction.png"
+        fig.savefig(out, dpi=200)
+        plt.close(fig)
+        print(f"Saved {out}")
