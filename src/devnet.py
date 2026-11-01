@@ -5,8 +5,8 @@ Networks", KDD 2019. ADBench uses the authors' Keras/TensorFlow 1 code
 (adbench/baseline/DevNet/run.py). That code does not run on current Python, so
 this file reproduces it in PyTorch with the same architecture and settings.
 
-This file currently holds the network, the deviation loss, the batch sampler
-and the training loop. Scoring is added separately.
+This file holds the network, the deviation loss, the batch sampler, the
+training loop and scoring.
 """
 
 import copy
@@ -129,6 +129,12 @@ def train_devnet(X_train, y_train, seed, epochs=EPOCHS, n_batches=N_BATCHES):
     return model, history
 
 
+def score_devnet(model, X):
+    """Anomaly score for each sample: the network's raw output (higher = more anomalous)."""
+    with torch.no_grad():
+        return model(torch.tensor(X, dtype=torch.float32)).numpy()
+
+
 if __name__ == "__main__":
     # Sanity checks on the loss with hand-picked scores
     ref = make_reference(seed=1)
@@ -166,17 +172,28 @@ if __name__ == "__main__":
     _, _, idx_again = sample_batch(X_train, y_semi, np.random.default_rng(1))
     print(f"same seed gives the same batch: {bool((idx == idx_again).all())}")
 
-    # Sanity check on training: loss should fall, and the run should be repeatable
+    # Sanity check on training and scoring: Annthyroid, 1% labeled, seed 1
     import time
     from data import scale_features
+    from results import evaluate
 
-    X_train_s, _ = scale_features(X_train, X_train)
+    X_train, X_test, y_train, y_test = split_data(X, y, seed=1)
+    X_train, X_test = scale_features(X_train, X_test)
     start = time.time()
-    model, history = train_devnet(X_train_s, y_semi, seed=1)
+    model, history = train_devnet(X_train, y_semi, seed=1)
     print(f"\ntrained {len(history)} epochs in {time.time() - start:.1f}s")
     for e in (0, 9, 19, 29, 39, 49):
         print(f"  epoch {e + 1:2d}  loss {history[e]:.4f}")
     best = int(np.argmin(history))
     print(f"  best epoch {best + 1} (loss {history[best]:.4f}) weights kept")
-    _, history_again = train_devnet(X_train_s, y_semi, seed=1)
-    print(f"same seed gives the same training: {history == history_again}")
+
+    scores = score_devnet(model, X_test)
+    auc_roc, auc_pr = evaluate(y_test, scores)
+    print(f"\ntest scores: {len(scores)} values")
+    print(f"  mean score, normal test patients:  {scores[y_test == 0].mean():.3f}")
+    print(f"  mean score, anomaly test patients: {scores[y_test == 1].mean():.3f}")
+    print(f"  AUC-ROC {auc_roc:.4f}  AUC-PR {auc_pr:.4f}")
+
+    model_again, history_again = train_devnet(X_train, y_semi, seed=1)
+    same = history == history_again and np.array_equal(scores, score_devnet(model_again, X_test))
+    print(f"same seed gives the same training and scores: {same}")
