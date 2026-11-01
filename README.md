@@ -77,6 +77,29 @@ In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`
 To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
 
 
+## Running the experiments
+
+Run each script from the repo root with the virtual environment active. Each one deletes its
+old results file first, so re-running never duplicates rows.
+
+| Script | Algorithms | Category | Output | Runs | Time (MacBook Pro) |
+|---|---|---|---|---|---|
+| `python src/run_unsupervised.py` | ECOD, IForest | Unsupervised | `results/unsupervised_results.csv` | 36 | seconds |
+| `python src/run_supervised.py` | Random Forest, XGBoost | Supervised | `results/supervised/random_forest_results.csv`, `results/supervised/xgboost_results.csv` | 216 | under a minute |
+| `python src/run_xgbod.py` | XGBOD | Semi-supervised | `results/xgbod_results.csv` | 108 | about 3 minutes |
+| `python src/run_devnet.py` | DevNet | Semi-supervised | `results/devnet_results.csv` | 108 | under 30 seconds |
+
+Unsupervised methods ignore labels, so they run once per dataset and seed (label fraction 0).
+All other methods run every dataset x label fraction (1, 5, 10, 25, 50, 100%) x seed (1, 2, 3).
+
+Notes:
+
+* XGBOD uses PyOD's implementation with default settings, the same one ADBench uses.
+* DevNet is a PyTorch port of the ADBench DevNet code (`src/devnet.py`), keeping the original
+  architecture and training settings. The original is Keras/TensorFlow 1 code that does not run
+  on current Python. Running `python src/devnet.py` prints sanity checks for the loss, the batch
+  sampler, training and scoring.
+
 ## Adding your algorithm
 
 Every algorithm uses the shared data module and the shared results format, so all results
