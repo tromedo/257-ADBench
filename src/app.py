@@ -94,6 +94,36 @@ else:
         note += " Dotted gray line: random guess (the dataset's anomaly ratio)."
     st.caption(note + " Hover any point or line for exact values.")
 
+    st.markdown(f"**{METRIC_LABELS[metric]} on {DATASET_TITLES[dataset]}**, mean ± std over seeds. "
+                "Best value in each column is highlighted.")
+    table = summary.copy()
+    table["column"] = table["label_fraction"].map(lambda f: "No labels" if f == 0 else f"{f * 100:g}%")
+    columns = (["No labels"] if (table["label_fraction"] == 0).any() else []) + \
+              [c for c in fraction_order if c in set(table["column"])]
+    means = table.pivot_table(index=["algorithm", "category"], columns="column", values="mean")
+    stds = table.pivot_table(index=["algorithm", "category"], columns="column", values="std")
+    means, stds = means.reindex(columns=columns), stds.reindex(columns=columns)
+    rows = [a for a in order if a in means.index.get_level_values("algorithm")]
+    means = means.reindex(rows, level="algorithm")
+    stds = stds.reindex(means.index)
+
+    shown = means.copy().astype(object)
+    for col in columns:
+        for idx in means.index:
+            m, sd = means.at[idx, col], stds.at[idx, col]
+            shown.at[idx, col] = "" if m != m else f"{m:.3f} ± {0 if sd != sd else sd:.3f}"
+
+    rounded = means.round(3)  # values that look tied on screen are highlighted together
+
+    def highlight_best(column):
+        best = rounded[column.name].max()
+        return ["font-weight: 700; background-color: rgba(42, 120, 214, 0.18)"
+                if rounded.at[idx, column.name] == best else "" for idx in column.index]
+
+    st.dataframe(shown.reset_index().set_index(["algorithm", "category"]).style.apply(highlight_best),
+                 width="stretch",
+                 column_config={c: st.column_config.TextColumn(c, width="small") for c in columns})
+
 with st.expander("All result rows"):
     st.dataframe(results, hide_index=True, width="stretch")
 
