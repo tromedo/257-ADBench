@@ -11,9 +11,12 @@ Run from the repo root:
 
 import time
 
-from data import hide_labels, load_dataset, scale_features, split_data
+from data import DATASET_NAMES, LABEL_FRACTIONS, hide_labels, load_dataset, scale_features, split_data
 from devnet import score_devnet, train_devnet
-from results import evaluate
+from results import RESULTS_DIR, evaluate, save_result
+
+SEEDS = [1, 2, 3]
+RESULTS_FILE = "devnet_results.csv"
 
 
 def run_once(dataset, fraction, seed):
@@ -42,6 +45,26 @@ def run_once(dataset, fraction, seed):
     }
 
 
+def run_all():
+    """Run every dataset x label fraction x seed and save each result row."""
+    out = RESULTS_DIR / RESULTS_FILE
+    if out.exists():
+        out.unlink()  # start fresh so re-running does not duplicate rows
+
+    total = len(DATASET_NAMES) * len(LABEL_FRACTIONS) * len(SEEDS)
+    done = 0
+    for dataset in DATASET_NAMES:
+        for fraction in LABEL_FRACTIONS:
+            for seed in SEEDS:
+                row = run_once(dataset, fraction, seed)
+                save_result(row, RESULTS_FILE)
+                done += 1
+                print(f"[{done:3d}/{total}] {dataset:16s} {int(fraction * 100):3d}% "
+                      f"(n_labeled={row['n_labeled']:3d}) seed={seed}  "
+                      f"AUC-ROC={row['auc_roc']:.3f}  AUC-PR={row['auc_pr']:.3f}  "
+                      f"{row['runtime_sec']:.1f}s")
+    print(f"Saved {total} rows to {out}")
+
+
 if __name__ == "__main__":
-    # Single test run before looping over everything
-    print(run_once("annthyroid", fraction=0.01, seed=1))
+    run_all()
