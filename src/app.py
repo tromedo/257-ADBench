@@ -124,6 +124,57 @@ else:
                  width="stretch",
                  column_config={c: st.column_config.TextColumn(c, width="small") for c in columns})
 
+st.subheader("The paper's claim: does a little labeling beat the best unsupervised method?")
+st.caption("ADBench claims that with only 1% labeled anomalies, most semi-supervised methods beat the best "
+           "unsupervised method. Each cell compares a labeled method's mean score with the best "
+           "unsupervised mean on that dataset; the number is the difference.")
+
+if not (results["category"] == "unsupervised").any():
+    st.info("No unsupervised results found, so there is nothing to compare against.")
+else:
+    g1, g2 = st.columns([1, 2])
+    claim_metric = g1.radio("Metric ", list(METRIC_LABELS), format_func=METRIC_LABELS.get,
+                            horizontal=True, key="claim_metric")
+    labeled_fractions = sorted(f for f in results["label_fraction"].unique() if f > 0)
+    claim_fraction = g2.select_slider("Label fraction", options=labeled_fractions, value=labeled_fractions[0],
+                                      format_func=lambda f: f"{f * 100:g}%")
+
+    claim = summarize(results, claim_metric)
+    unsup = claim[claim["category"] == "unsupervised"]
+    best_unsup = unsup.loc[unsup.groupby("dataset")["mean"].idxmax(), ["dataset", "algorithm", "mean"]]
+    best_unsup = best_unsup.set_index("dataset")
+    at_fraction = claim[(claim["category"] != "unsupervised") & (claim["label_fraction"] == claim_fraction)]
+    n_labeled = (results[results["label_fraction"] == claim_fraction]
+                 .groupby("dataset")["n_labeled"].first())
+
+    _, order = algorithm_colors(set(results["algorithm"]))
+    methods = [a for a in order if a in set(at_fraction["algorithm"])]
+    ds_rows = [d for d in DATASET_TITLES if d in best_unsup.index]
+
+    grid, wins, total = [], 0, 0
+    for d in ds_rows:
+        row = {"Dataset": DATASET_TITLES[d],
+               "Labeled anomalies": int(n_labeled.get(d, 0)),
+               "Best unsupervised": f"{best_unsup.at[d, 'algorithm']} {best_unsup.at[d, 'mean']:.3f}"}
+        for m in methods:
+            hit = at_fraction[(at_fraction["dataset"] == d) & (at_fraction["algorithm"] == m)]
+            if hit.empty:
+                row[m] = ""
+                continue
+            diff = hit["mean"].iloc[0] - best_unsup.at[d, "mean"]
+            beats = round(diff, 3) > 0
+            wins += beats
+            total += 1
+            row[m] = f"{'✓ beats' if beats else '✗ does not'} ({diff:+.3f})"
+        grid.append(row)
+
+    st.metric(f"Labeled method and dataset pairs that beat the best unsupervised method at "
+              f"{claim_fraction * 100:g}% ({METRIC_LABELS[claim_metric]})", f"{wins} of {total}")
+    st.dataframe(grid, hide_index=True, width="stretch")
+    st.caption("✓ means the labeled method's mean is higher than the best unsupervised mean (rounded to 3 "
+               "decimals). 'Labeled anomalies' is how many training anomalies that fraction actually labels; "
+               "on the small datasets the minimum of 1 applies.")
+
 with st.expander("All result rows"):
     st.dataframe(results, hide_index=True, width="stretch")
 
