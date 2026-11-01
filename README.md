@@ -120,6 +120,16 @@ methods are flat dashed lines, and the AUC-PR figure marks the random-guess leve
 dataset's anomaly ratio). A new algorithm appears automatically once its runner writes a
 results CSV in the shared format. Re-run the script after adding or updating results.
 
+## Results explorer (web app)
+
+```
+streamlit run src/app.py
+```
+
+Opens a local page in the browser that reads every results CSV through `src/load_results.py`,
+so new algorithms appear automatically. Use the "Reload results" button after re-running an
+experiment.
+
 ## Adding your algorithm
 
 Every algorithm uses the shared data module and the shared results format, so all results
