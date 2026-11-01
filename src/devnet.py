@@ -5,9 +5,11 @@ Networks", KDD 2019. ADBench uses the authors' Keras/TensorFlow 1 code
 (adbench/baseline/DevNet/run.py). That code does not run on current Python, so
 this file reproduces it in PyTorch with the same architecture and settings.
 
-This file currently holds the network, the deviation loss and the batch
-sampler. Training and scoring are added separately.
+This file currently holds the network, the deviation loss, the batch sampler
+and the training loop. Scoring is added separately.
 """
+
+import copy
 
 import numpy as np
 import torch
@@ -19,6 +21,12 @@ L2_WEIGHT = 0.01           # kernel_regularizer=l2(0.01) on the hidden layer
 CONFIDENCE_MARGIN = 5.0    # anomalies should score at least 5 std above normal
 N_REFERENCE = 5000         # number of reference scores drawn from N(0, 1)
 BATCH_SIZE = 512           # samples per training batch
+N_BATCHES = 20             # batches per epoch (nb_batch)
+EPOCHS = 50                # training epochs
+LEARNING_RATE = 0.001      # Keras RMSprop defaults: lr 0.001, rho 0.9, epsilon 1e-7
+RMSPROP_RHO = 0.9
+RMSPROP_EPS = 1e-7
+CLIP_NORM = 1.0            # RMSprop(clipnorm=1.)
 
 
 class DevNetModel(nn.Module):
@@ -82,6 +90,45 @@ def sample_batch(X, y, rng, batch_size=BATCH_SIZE):
     return torch.tensor(X[idx], dtype=torch.float32), torch.tensor(labels, dtype=torch.float32), idx
 
 
+def train_devnet(X_train, y_train, seed, epochs=EPOCHS, n_batches=N_BATCHES):
+    """Train DevNet and return the model with the weights from its lowest-loss epoch.
+
+    Mirrors the original fit(): balanced batches, deviation loss plus L2 penalty,
+    RMSprop with gradient norm clipping, and a checkpoint that keeps the best
+    weights by training loss (ModelCheckpoint with save_best_only=True).
+
+    Returns the model and the list of per-epoch average losses.
+    """
+    torch.manual_seed(seed)
+    rng = np.random.default_rng(seed)
+    reference = make_reference(seed)
+
+    model = DevNetModel(X_train.shape[1])
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=LEARNING_RATE,
+                                    alpha=RMSPROP_RHO, eps=RMSPROP_EPS)
+
+    best_loss, best_state, history = float("inf"), None, []
+    for _ in range(epochs):
+        model.train()
+        epoch_loss = 0.0
+        for _ in range(n_batches):
+            xb, yb, _ = sample_batch(X_train, y_train, rng)
+            loss = deviation_loss(model(xb), yb, reference) + model.l2_penalty()
+            optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), CLIP_NORM)
+            optimizer.step()
+            epoch_loss += loss.item()
+        epoch_loss /= n_batches
+        history.append(epoch_loss)
+        if epoch_loss < best_loss:
+            best_loss, best_state = epoch_loss, copy.deepcopy(model.state_dict())
+
+    model.load_state_dict(best_state)
+    model.eval()
+    return model, history
+
+
 if __name__ == "__main__":
     # Sanity checks on the loss with hand-picked scores
     ref = make_reference(seed=1)
@@ -118,3 +165,18 @@ if __name__ == "__main__":
     print(f"hidden anomalies that landed in the unlabeled half: {int(y_train[idx[0::2]].sum())}")
     _, _, idx_again = sample_batch(X_train, y_semi, np.random.default_rng(1))
     print(f"same seed gives the same batch: {bool((idx == idx_again).all())}")
+
+    # Sanity check on training: loss should fall, and the run should be repeatable
+    import time
+    from data import scale_features
+
+    X_train_s, _ = scale_features(X_train, X_train)
+    start = time.time()
+    model, history = train_devnet(X_train_s, y_semi, seed=1)
+    print(f"\ntrained {len(history)} epochs in {time.time() - start:.1f}s")
+    for e in (0, 9, 19, 29, 39, 49):
+        print(f"  epoch {e + 1:2d}  loss {history[e]:.4f}")
+    best = int(np.argmin(history))
+    print(f"  best epoch {best + 1} (loss {history[best]:.4f}) weights kept")
+    _, history_again = train_devnet(X_train_s, y_semi, seed=1)
+    print(f"same seed gives the same training: {history == history_again}")
