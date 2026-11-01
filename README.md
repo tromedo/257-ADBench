@@ -107,6 +107,19 @@ Notes:
   on current Python. Running `python src/devnet.py` prints sanity checks for the loss, the batch
   sampler, training and scoring.
 
+## Plots
+
+`python src/plot_results.py` reads every results CSV in `results/` (via `src/load_results.py`)
+and saves two figures to `results/figures/`:
+
+* `auc_roc_vs_label_fraction.png`
+* `auc_pr_vs_label_fraction.png`
+
+Each has one panel per dataset and one line per algorithm (mean of 3 seeds). Unsupervised
+methods are flat dashed lines, and the AUC-PR figure marks the random-guess level (the
+dataset's anomaly ratio). A new algorithm appears automatically once its runner writes a
+results CSV in the shared format. Re-run the script after adding or updating results.
+
 ## Adding your algorithm
 
 Every algorithm uses the shared data module and the shared results format, so all results
