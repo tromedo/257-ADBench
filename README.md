@@ -77,6 +77,13 @@ In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`
 To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
 
 
+## Data quality
+
+`python src/check_data_quality.py` reports missing values and duplicate rows for each dataset.
+There are no missing values. Annthyroid, Breastw and Cardiotocography contain duplicate rows;
+following ADBench, we keep the datasets as provided and do not remove them. The script also
+shows how many test rows also appear in the training set, which matters most for Breastw.
+
 ## Running the experiments
 
 Run each script from the repo root with the virtual environment active. Each one deletes its
