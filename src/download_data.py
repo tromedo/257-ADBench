@@ -19,6 +19,10 @@ DATASETS = {
     "lymphography": "21_Lymphography.npz",
     "vertebral": "39_vertebral.npz",
     "hepatitis": "15_Hepatitis.npz",
+    # Larger datasets (more labeled anomalies at 1%)
+    "satellite": "30_satellite.npz",
+    "landsat": "19_landsat.npz",
+    "magic_gamma": "22_magic.gamma.npz",
 }
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"

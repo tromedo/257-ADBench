@@ -8,7 +8,7 @@ training are in src/devnet.py (PyTorch port of the ADBench implementation).
 Run from the repo root:
     python src/run_devnet.py
 """
-
+import sys
 import time
 
 from data import DATASET_NAMES, LABEL_FRACTIONS, hide_labels, load_dataset, scale_features, split_data
@@ -17,7 +17,7 @@ from results import RESULTS_DIR, evaluate, save_result
 
 SEEDS = [1, 2, 3]
 RESULTS_FILE = "devnet_results.csv"
-
+EXTRA_RESULTS_FILE = "larger_dataset/devnet_extra_results.csv"
 
 def run_once(dataset, fraction, seed):
     """Train and evaluate DevNet for one dataset, label fraction and seed."""
@@ -47,17 +47,19 @@ def run_once(dataset, fraction, seed):
 
 def run_all():
     """Run every dataset x label fraction x seed and save each result row."""
-    out = RESULTS_DIR / RESULTS_FILE
+    datasets = sys.argv[1:] or DATASET_NAMES
+    results_file = EXTRA_RESULTS_FILE if sys.argv[1:] else RESULTS_FILE
+    out = RESULTS_DIR / results_file
     if out.exists():
         out.unlink()  # start fresh so re-running does not duplicate rows
 
-    total = len(DATASET_NAMES) * len(LABEL_FRACTIONS) * len(SEEDS)
+    total = len(datasets) * len(LABEL_FRACTIONS) * len(SEEDS)
     done = 0
-    for dataset in DATASET_NAMES:
+    for dataset in datasets:
         for fraction in LABEL_FRACTIONS:
             for seed in SEEDS:
                 row = run_once(dataset, fraction, seed)
-                save_result(row, RESULTS_FILE)
+                save_result(row, results_file)
                 done += 1
                 print(f"[{done:3d}/{total}] {dataset:16s} {int(fraction * 100):3d}% "
                       f"(n_labeled={row['n_labeled']:3d}) seed={seed}  "

@@ -7,7 +7,7 @@ few labeled anomalies. We use PyOD's implementation with its default settings.
 Run from the repo root:
     python src/run_xgbod.py
 """
-
+import sys
 import time
 import warnings
 
@@ -18,7 +18,7 @@ from results import RESULTS_DIR, evaluate, save_result
 
 SEEDS = [1, 2, 3]
 RESULTS_FILE = "xgbod_results.csv"
-
+EXTRA_RESULTS_FILE = "larger_dataset/xgbod_extra_results.csv"
 # Two known, harmless warnings from inside PyOD and XGBoost (see README)
 warnings.filterwarnings("ignore", message="y should not be presented")
 warnings.filterwarnings("ignore", message=r"[\s\S]*silent")
@@ -52,25 +52,31 @@ def run_once(dataset, fraction, seed):
 
 
 def run_all():
-    """Run every dataset x label fraction x seed and save each result row."""
-    out = RESULTS_DIR / RESULTS_FILE
+    """Run every dataset x label fraction x seed and save each result row.
+
+    No arguments: the 6 main datasets, saved to xgbod_results.csv.
+    With arguments: only those datasets, saved to xgbod_extra_results.csv.
+    """
+    datasets = sys.argv[1:] or DATASET_NAMES
+    results_file = EXTRA_RESULTS_FILE if sys.argv[1:] else RESULTS_FILE
+
+    out = RESULTS_DIR / results_file
     if out.exists():
         out.unlink()  # start fresh so re-running does not duplicate rows
 
-    total = len(DATASET_NAMES) * len(LABEL_FRACTIONS) * len(SEEDS)
+    total = len(datasets) * len(LABEL_FRACTIONS) * len(SEEDS)
     done = 0
-    for dataset in DATASET_NAMES:
+    for dataset in datasets:
         for fraction in LABEL_FRACTIONS:
             for seed in SEEDS:
                 row = run_once(dataset, fraction, seed)
-                save_result(row, RESULTS_FILE)
+                save_result(row, results_file)
                 done += 1
                 print(f"[{done:3d}/{total}] {dataset:16s} {int(fraction * 100):3d}% "
                       f"(n_labeled={row['n_labeled']:3d}) seed={seed}  "
                       f"AUC-ROC={row['auc_roc']:.3f}  AUC-PR={row['auc_pr']:.3f}  "
                       f"{row['runtime_sec']:.1f}s")
     print(f"Saved {total} rows to {out}")
-
 
 if __name__ == "__main__":
     run_all()
