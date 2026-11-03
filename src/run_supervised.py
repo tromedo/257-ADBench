@@ -36,7 +36,8 @@ MODELS = {
     "RandomForest": lambda seed: RandomForestClassifier(
         n_estimators=100, random_state=seed, n_jobs=-1),
     "XGBoost": lambda seed: XGBClassifier(
-        n_estimators=100, random_state=seed, n_jobs=-1, eval_metric="logloss"),
+        n_estimators=100, random_state=seed, n_jobs=-1, eval_metric="logloss",
+        base_score=0.5),   # older XGBoost default; matches PyOD's XGBOD
 }
 
 
