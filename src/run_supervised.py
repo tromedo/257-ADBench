@@ -1,3 +1,15 @@
+"""Supervised baselines: Random Forest and XGBoost.
+
+For every dataset, seed and label fraction, train each model with only that
+fraction of training anomalies labeled (the rest are treated as normal),
+then score the test set and record AUC-ROC and AUC-PR.
+
+Run from the repo root:
+    python src/run_supervised.py                                   # the 6 main datasets
+    python src/run_supervised.py satellite landsat magic_gamma     # extra datasets only
+"""
+
+import sys
 import time
 
 from sklearn.ensemble import RandomForestClassifier
@@ -9,9 +21,14 @@ from results import RESULTS_DIR, evaluate, save_result
 
 SEEDS = [1, 2, 3]
 CATEGORY = "supervised"
+
 RESULTS_FILES = {
     "RandomForest": "random_forest_results.csv",
     "XGBoost": "xgboost_results.csv",
+}
+EXTRA_RESULTS_FILES = {
+    "RandomForest": "larger_dataset/random_forest_extra_results.csv",
+    "XGBoost": "larger_dataset/xgboost_extra_results.csv",
 }
 
 # Each model is built fresh for every run; default settings, as in ADBench.
@@ -19,7 +36,8 @@ MODELS = {
     "RandomForest": lambda seed: RandomForestClassifier(
         n_estimators=100, random_state=seed, n_jobs=-1),
     "XGBoost": lambda seed: XGBClassifier(
-        n_estimators=100, random_state=seed, n_jobs=-1, eval_metric="logloss"),
+        n_estimators=100, random_state=seed, n_jobs=-1, eval_metric="logloss",
+        base_score=0.5),   # older XGBoost default; matches PyOD's XGBOD
 }
 
 
@@ -45,25 +63,30 @@ def run_one(dataset, algorithm, seed, fraction):
 
 
 def main():
-    for filename in RESULTS_FILES.values():       # start fresh, no duplicate rows
+    # No arguments: the 6 main datasets. With arguments: only those datasets,
+    # saved to separate files so the main results are not touched.
+    datasets = sys.argv[1:] or DATASET_NAMES
+    files = EXTRA_RESULTS_FILES if sys.argv[1:] else RESULTS_FILES
+
+    for filename in files.values():               # start fresh, no duplicate rows
         out_path = RESULTS_DIR / filename
         if out_path.exists():
-            out_path.unlink()                        
+            out_path.unlink()
 
-    total = len(DATASET_NAMES) * len(MODELS) * len(SEEDS) * len(LABEL_FRACTIONS)
+    total = len(datasets) * len(MODELS) * len(SEEDS) * len(LABEL_FRACTIONS)
     done = 0
-    for dataset in DATASET_NAMES:
+    for dataset in datasets:
         for algorithm in MODELS:
             for seed in SEEDS:
                 for fraction in LABEL_FRACTIONS:
                     row = run_one(dataset, algorithm, seed, fraction)
-                    save_result(row, RESULTS_FILES[algorithm])
+                    save_result(row, files[algorithm])
                     done += 1
                     print(f"[{done:3d}/{total}] {dataset:16s} {algorithm:12s} seed={seed} "
                           f"frac={fraction:4.2f} labeled={row['n_labeled']:3d}  "
                           f"AUC-ROC={row['auc_roc']:.3f}  AUC-PR={row['auc_pr']:.3f}")
 
-    print(f"\nSaved {done} rows to {', '.join(RESULTS_FILES.values())} in {RESULTS_DIR}")
+    print(f"\nSaved {done} rows to {', '.join(files.values())} in {RESULTS_DIR}")
 
 
 if __name__ == "__main__":

@@ -92,9 +92,19 @@ old results file first, so re-running never duplicates rows.
 | Script | Algorithms | Category | Output | Runs | Time (MacBook Pro) |
 |---|---|---|---|---|---|
 | `python src/run_unsupervised.py` | ECOD, IForest | Unsupervised | `results/unsupervised_results.csv` | 36 | seconds |
-| `python src/run_supervised.py` | Random Forest, XGBoost | Supervised | `results/supervised/random_forest_results.csv`, `results/supervised/xgboost_results.csv` | 216 | under a minute |
+| `python src/run_supervised.py` | Random Forest, XGBoost | Supervised | `results/random_forest_results.csv`, `results/xgboost_results.csv` | 216 | under a minute |
 | `python src/run_xgbod.py` | XGBOD | Semi-supervised | `results/xgbod_results.csv` | 108 | about 3 minutes |
 | `python src/run_devnet.py` | DevNet | Semi-supervised | `results/devnet_results.csv` | 108 | under 30 seconds |
+
+To run only specific datasets, add their names after the script. Results then go to
+`results/larger_dataset/` instead, so the main results are not touched:
+
+| Script | Output |
+|---|---|
+| `python src/run_unsupervised.py satellite landsat magic_gamma` | `results/larger_dataset/unsupervised_extra_results.csv` |
+| `python src/run_supervised.py satellite landsat magic_gamma` | `results/larger_dataset/random_forest_extra_results.csv`, `xgboost_extra_results.csv` |
+| `python src/run_xgbod.py satellite landsat magic_gamma` | `results/larger_dataset/xgbod_extra_results.csv` (~30 min) |
+| `python src/run_devnet.py satellite landsat magic_gamma` | `results/larger_dataset/devnet_extra_results.csv` |
 
 Unsupervised methods ignore labels, so they run once per dataset and seed (label fraction 0).
 All other methods run every dataset x label fraction (1, 5, 10, 25, 50, 100%) x seed (1, 2, 3).
@@ -106,6 +116,7 @@ Notes:
   architecture and training settings. The original is Keras/TensorFlow 1 code that does not run
   on current Python. Running `python src/devnet.py` prints sanity checks for the loss, the batch
   sampler, training and scoring.
+
 
 ## Plots
 

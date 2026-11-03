@@ -8,7 +8,7 @@ We use PyOD's implementations with their default settings.
 Run from the repo root:
     python src/run_unsupervised.py
 """
-
+import sys
 import time
 
 from pyod.models.ecod import ECOD
@@ -19,7 +19,7 @@ from results import RESULTS_DIR, evaluate, save_result
 
 SEEDS = [1, 2, 3]
 RESULTS_FILE = "unsupervised_results.csv"
-
+EXTRA_RESULTS_FILE = "larger_dataset/unsupervised_extra_results.csv"
 # Name -> function that builds a fresh model for a given seed
 MODELS = {
     "ECOD": lambda seed: ECOD(),  # deterministic, has no random_state
@@ -55,17 +55,19 @@ def run_once(dataset, algorithm, seed):
 
 def run_all():
     """Run every dataset x algorithm x seed and save each result row."""
-    out = RESULTS_DIR / RESULTS_FILE
+    datasets = sys.argv[1:] or DATASET_NAMES
+    results_file = EXTRA_RESULTS_FILE if sys.argv[1:] else RESULTS_FILE
+    out = RESULTS_DIR / results_file
     if out.exists():
         out.unlink()  # start fresh so re-running does not duplicate rows
 
-    total = len(DATASET_NAMES) * len(MODELS) * len(SEEDS)
+    total = len(datasets) * len(MODELS) * len(SEEDS)
     done = 0
-    for dataset in DATASET_NAMES:
+    for dataset in datasets:
         for algorithm in MODELS:
             for seed in SEEDS:
                 row = run_once(dataset, algorithm, seed)
-                save_result(row, RESULTS_FILE)
+                save_result(row, results_file)
                 done += 1
                 print(f"[{done:2d}/{total}] {dataset:16s} {algorithm:8s} seed={seed}  "
                       f"AUC-ROC={row['auc_roc']:.3f}  AUC-PR={row['auc_pr']:.3f}  "
