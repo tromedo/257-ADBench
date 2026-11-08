@@ -10,6 +10,7 @@ Run from the repo root:
 """
 
 import math
+import warnings
 
 import matplotlib
 
@@ -29,7 +30,22 @@ DATASET_TITLES = {
     "hepatitis": "Hepatitis",
     "lymphography": "Lymphography",
     "vertebral": "Vertebral",
+    # Larger datasets, where 1% labeled means 9 to 46 anomalies
+    "satellite": "Satellite",
+    "landsat": "Landsat",
+    "magic_gamma": "Magic Gamma",
 }
+
+
+def dataset_title(dataset):
+    """Display name; datasets not listed above get a title made from their file name."""
+    return DATASET_TITLES.get(dataset, dataset.replace("_", " ").title())
+
+
+def dataset_order(datasets):
+    """Listed datasets first in their fixed order, any new ones after, alphabetically."""
+    present = set(datasets)
+    return [d for d in DATASET_TITLES if d in present] + sorted(present - set(DATASET_TITLES))
 METRIC_LABELS = {"auc_roc": "AUC-ROC", "auc_pr": "AUC-PR"}
 
 # Fixed color per algorithm, so the same method has the same color in every figure.
@@ -44,8 +60,15 @@ BASELINE = "#8a8984"  # neutral gray for the random-guess reference line
 
 
 def anomaly_ratio(dataset):
-    """Share of anomalies in a dataset: the AUC-PR score of a random ranking."""
-    _, y = load_dataset(dataset)
+    """Share of anomalies in a dataset: the AUC-PR score of a random ranking.
+
+    Returns None if the dataset file has not been downloaded (run download_data.py).
+    """
+    try:
+        _, y = load_dataset(dataset)
+    except FileNotFoundError:
+        warnings.warn(f"data/{dataset}.npz not found; skipping its random-guess line")
+        return None
     return y.mean()
 
 
@@ -64,8 +87,13 @@ def plot_metric(df, metric):
     colors, order = algorithm_colors(set(summary["algorithm"]))
     category = summary.drop_duplicates("algorithm").set_index("algorithm")["category"]
 
-    datasets = [d for d in DATASET_TITLES if d in set(summary["dataset"])]
-    fig, axes = plt.subplots(2, 3, figsize=(13, 7.5), sharex=True)
+    datasets = dataset_order(summary["dataset"])
+    ncols = 3
+    nrows = math.ceil(len(datasets) / ncols)
+    height = 3.4 * nrows + 0.7  # fixed panel height plus room for title and legend
+    fig, axes = plt.subplots(nrows, ncols, figsize=(13, height), sharex=True, squeeze=False)
+    for ax in axes.flat[len(datasets):]:
+        ax.set_visible(False)  # unused panels when datasets do not fill the last row
     for ax, dataset in zip(axes.flat, datasets):
         part = summary[summary["dataset"] == dataset]
         for algorithm in order:
@@ -81,10 +109,10 @@ def plot_metric(df, metric):
                         color=colors[algorithm], linewidth=2,
                         marker=MARKERS.get(category[algorithm], "o"), markersize=6,
                         markeredgecolor="white", markeredgewidth=1.2, zorder=3)
-        if metric == "auc_pr":
-            ax.axhline(anomaly_ratio(dataset), color=BASELINE, linewidth=1.2,
-                       linestyle=(0, (1, 2)), zorder=1)
-        ax.set_title(DATASET_TITLES[dataset], color=TEXT, fontsize=12, loc="left")
+        ratio = anomaly_ratio(dataset) if metric == "auc_pr" else None
+        if ratio is not None:
+            ax.axhline(ratio, color=BASELINE, linewidth=1.2, linestyle=(0, (1, 2)), zorder=1)
+        ax.set_title(dataset_title(dataset), color=TEXT, fontsize=12, loc="left")
         ax.set_ylim(0, 1.02)
         ax.set_xticks(range(len(fractions)))
         ax.set_xticklabels([f"{f * 100:g}%" for f in fractions])
@@ -98,8 +126,10 @@ def plot_metric(df, metric):
 
     for ax in axes[:, 0]:
         ax.set_ylabel(f"{METRIC_LABELS[metric]} (mean of 3 seeds)", color=MUTED)
-    for ax in axes[1, :]:
-        ax.set_xlabel("Labeled anomalies in training", color=MUTED)
+    for i, ax in enumerate(axes.flat[:len(datasets)]):
+        if i + ncols >= len(datasets):  # last visible panel in each column
+            ax.set_xlabel("Labeled anomalies in training", color=MUTED)
+            ax.tick_params(labelbottom=True)
 
     handles = []
     for algorithm in order:
@@ -117,11 +147,12 @@ def plot_metric(df, metric):
         handles.append((h, "Random guess (anomaly ratio)"))
     # One legend row for up to 6 entries, otherwise wrap onto two rows
     ncol = len(handles) if len(handles) <= 6 else math.ceil(len(handles) / 2)
-    top = 0.935 if len(handles) <= 6 else 0.905
+    header = 0.75 if len(handles) <= 6 else 1.0  # inches reserved for title and legend
+    top = 1 - header / height
     fig.legend([h for h, _ in handles], [l for _, l in handles], loc="upper center",
-               ncol=ncol, frameon=False, fontsize=9, bbox_to_anchor=(0.5, 0.955))
+               ncol=ncol, frameon=False, fontsize=9, bbox_to_anchor=(0.5, 1 - 0.4 / height))
     fig.suptitle(f"{METRIC_LABELS[metric]} vs fraction of labeled anomalies",
-                 x=0.01, ha="left", fontsize=14, color=TEXT)
+                 x=0.01, y=1 - 0.12 / height, ha="left", fontsize=14, color=TEXT)
     fig.tight_layout(rect=(0, 0, 1, top))
     return fig
 

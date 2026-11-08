@@ -11,7 +11,8 @@ import altair as alt
 import streamlit as st
 
 from load_results import load_all_results, summarize
-from plot_results import BASELINE, DATASET_TITLES, METRIC_LABELS, algorithm_colors, anomaly_ratio
+from plot_results import (BASELINE, METRIC_LABELS, algorithm_colors, anomaly_ratio, dataset_order,
+                          dataset_title)
 
 st.set_page_config(page_title="ADBench Label Efficiency", layout="wide")
 
@@ -39,10 +40,10 @@ st.dataframe(found, hide_index=True, width="stretch")
 
 st.subheader("Performance vs fraction of labeled anomalies")
 
-datasets = [d for d in DATASET_TITLES if d in set(results["dataset"])]
+datasets = dataset_order(results["dataset"])
 all_algorithms = sorted(results["algorithm"].unique())
 f1, f2, f3 = st.columns([1, 1, 2])
-dataset = f1.selectbox("Dataset", datasets, format_func=lambda d: DATASET_TITLES[d])
+dataset = f1.selectbox("Dataset", datasets, format_func=dataset_title)
 metric = f2.radio("Metric", list(METRIC_LABELS), format_func=METRIC_LABELS.get, horizontal=True)
 chosen = f3.multiselect("Algorithms", all_algorithms, default=all_algorithms)
 
@@ -83,8 +84,9 @@ else:
     if not unsup_part.empty:
         layers.append(alt.Chart(unsup_part).mark_rule(strokeWidth=2, strokeDash=[6, 4])
                       .encode(y=y, color=color, tooltip=tooltip))
-    if metric == "auc_pr":
-        layers.append(alt.Chart({"values": [{"ratio": anomaly_ratio(dataset)}]})
+    ratio = anomaly_ratio(dataset) if metric == "auc_pr" else None
+    if ratio is not None:
+        layers.append(alt.Chart({"values": [{"ratio": ratio}]})
                       .mark_rule(color=BASELINE, strokeDash=[1, 3], strokeWidth=1.5)
                       .encode(y="ratio:Q", tooltip=alt.Tooltip("ratio:Q", title="Random guess", format=".3f")))
 
@@ -94,7 +96,7 @@ else:
         note += " Dotted gray line: random guess (the dataset's anomaly ratio)."
     st.caption(note + " Hover any point or line for exact values.")
 
-    st.markdown(f"**{METRIC_LABELS[metric]} on {DATASET_TITLES[dataset]}**, mean ± std over seeds. "
+    st.markdown(f"**{METRIC_LABELS[metric]} on {dataset_title(dataset)}**, mean ± std over seeds. "
                 "Best value in each column is highlighted.")
     table = summary.copy()
     table["column"] = table["label_fraction"].map(lambda f: "No labels" if f == 0 else f"{f * 100:g}%")
@@ -149,11 +151,11 @@ else:
 
     _, order = algorithm_colors(set(results["algorithm"]))
     methods = [a for a in order if a in set(at_fraction["algorithm"])]
-    ds_rows = [d for d in DATASET_TITLES if d in best_unsup.index]
+    ds_rows = dataset_order(best_unsup.index)
 
     grid, wins, total = [], 0, 0
     for d in ds_rows:
-        row = {"Dataset": DATASET_TITLES[d],
+        row = {"Dataset": dataset_title(d),
                "Labeled anomalies": int(n_labeled.get(d, 0)),
                "Best unsupervised": f"{best_unsup.at[d, 'algorithm']} {best_unsup.at[d, 'mean']:.3f}"}
         for m in methods:
