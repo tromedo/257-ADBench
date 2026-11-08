@@ -77,6 +77,19 @@ In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`
 To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
 
 
+## Reproduce everything (one command)
+
+```
+python src/reproduce.py                 # all datasets, all methods, figures (about 40 min)
+python src/reproduce.py --skip-larger   # 6 main datasets only (a few minutes)
+python src/reproduce.py --plots-only    # redraw figures from existing results
+```
+
+Runs the dataset download, the data quality check, every experiment runner and the plots, in
+order, and stops at the first failure. Most of the full run is XGBOD on the larger datasets.
+With the pinned versions in `requirements.txt`, the regenerated results CSVs should match the
+committed ones, so `git status` should show no changes afterwards.
+
 ## Data quality
 
 `python src/check_data_quality.py` reports missing values and duplicate rows for each dataset.
