@@ -9,7 +9,8 @@ Run from the repo root:
 
 import numpy as np
 
-from data import DATASET_NAMES, load_dataset, split_data
+from data import load_dataset, split_data
+from download_data import DATASETS
 
 
 def duplicate_stats(X, y):
@@ -30,8 +31,12 @@ def test_rows_seen_in_train(X_train, X_test):
 if __name__ == "__main__":
     print(f"{'dataset':16s} {'samples':>7s} {'missing':>7s} {'inf':>4s} "
           f"{'dup rows':>8s} {'label conflicts':>15s} {'test rows also in train (seed 1)':>33s}")
-    for name in DATASET_NAMES:
-        X, y = load_dataset(name)
+    for name in DATASETS:  # every dataset the download script knows about
+        try:
+            X, y = load_dataset(name)
+        except FileNotFoundError:
+            print(f"{name:16s} not downloaded (run python src/download_data.py)")
+            continue
         extra, conflicting = duplicate_stats(X, y)
         X_train, X_test, _, _ = split_data(X, y, seed=1)
         overlap = test_rows_seen_in_train(X_train, X_test)

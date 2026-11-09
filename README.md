@@ -135,7 +135,7 @@ Notes on deliberate choices:
 ## Data quality
 
 `python src/check_data_quality.py` reports missing values and duplicate rows for each dataset.
-There are no missing values. Annthyroid, Breastw and Cardiotocography contain duplicate rows;
+There are no missing values. Annthyroid, Breastw, Cardiotocography and Magic Gamma contain duplicate rows;
 following ADBench, we keep the datasets as provided and do not remove them. The script also
 shows how many test rows also appear in the training set, which matters most for Breastw.
 
