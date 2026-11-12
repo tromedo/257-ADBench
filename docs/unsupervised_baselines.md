@@ -48,12 +48,12 @@ Mean AUC-PR at 1% labeled anomalies, next to the best unsupervised model for eac
 
 | Dataset | Best unsupervised | DevNet | XGBOD | Random Forest | XGBoost |
 |---|---|---|---|---|---|
-| annthyroid | 0.291 (IForest) | 0.153 | **0.522** | 0.144 | **0.462** |
-| cardiotocography | 0.499 (ECOD) | 0.494 | 0.427 | 0.350 | **0.590** |
-| breastw | 0.990 (ECOD) | 0.663 | 0.680 | 0.462 | 0.910 |
-| lymphography | 1.000 (IForest) | 0.352 | 0.694 | 0.498 | 0.265 |
-| vertebral | 0.114 (ECOD) | **0.287** | **0.184** | **0.173** | **0.221** |
-| hepatitis | 0.433 (ECOD) | **0.444** | **0.455** | **0.621** | **0.620** |
+| annthyroid | 0.291 (IForest) | 0.153 | **0.522** | 0.144 | **0.450** |
+| cardiotocography | 0.499 (ECOD) | 0.494 | 0.427 | 0.350 | **0.594** |
+| breastw | 0.990 (ECOD) | 0.663 | 0.680 | 0.462 | 0.837 |
+| lymphography | 1.000 (IForest) | 0.352 | 0.694 | 0.498 | 0.437 |
+| vertebral | 0.114 (ECOD) | **0.287** | **0.184** | **0.173** | **0.223** |
+| hepatitis | 0.433 (ECOD) | **0.444** | **0.455** | **0.621** | **0.492** |
 
 Bold = beats the best unsupervised model.
 
@@ -69,14 +69,7 @@ Bold = beats the best unsupervised model.
 The combined figures are made by `python src/plot_results.py`, and `streamlit run src/app.py`
 shows the same comparison interactively.
 
-## Differences from ADBench's code
+## Differences from ADBench
 
-Our shared setup (`src/data.py`) differs from ADBench's data generator in these ways:
-
-* Scaling: we standardize (mean 0, std 1). ADBench uses min-max scaling.
-* Labeled count: we use `max(1, int(fraction * n))`, which rounds down. ADBench uses ceil.
-* Label fractions: ADBench also includes 75%. We use 1, 5, 10, 25, 50 and 100%.
-* Small datasets: ADBench resamples datasets under 1000 rows with replacement up to 1000
-  before splitting, so copies of the same row can land in both train and test.
-  We keep the original rows. This affects breastw, lymphography, vertebral and hepatitis.
-* Seeds: both use 1, 2 and 3.
+See "Settings and hyperparameters" in the README for every setting that differs from ADBench,
+and [paper_comparison.md](paper_comparison.md) for how our results compare with the paper.

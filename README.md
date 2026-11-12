@@ -7,7 +7,9 @@ Team: Manisha Varthamanan, Dipti Ghiya, Sriram Sridhar
 
 ## Scope
 
-Datasets (ADBench Classical): Annthyroid, Cardiotocography, Breastw, Lymphography, Vertebral, Hepatitis
+Datasets (ADBench Classical): Annthyroid, Cardiotocography, Breastw, Lymphography, Vertebral, Hepatitis,
+plus three larger ADBench datasets (Satellite, Landsat, Magic Gamma) added to test whether the
+1% result depends on having enough labeled anomalies.
 
 | Category | Algorithms | Owner |
 |---|---|---|
@@ -24,9 +26,11 @@ Metrics: AUC-ROC and AUC-PR.
 ## Layout
 
 ```
-data/      downloaded .npz datasets (not committed)
-src/       shared data module and algorithm runners
-results/   raw results CSVs and plots
+data/       downloaded .npz datasets (not committed)
+docs/       proposal, paper comparison, unsupervised baselines notes
+notebooks/  data exploration
+src/        shared data module, algorithm runners, plots, app, reproduce script
+results/    results CSVs (larger datasets in results/larger_dataset/) and figures/
 ```
 
 ## Setup (one time)
@@ -72,7 +76,7 @@ In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`
 
 ## Data Exploration
 
-`src/data_exploration.ipynb` looks at the six datasets before any training: dataset sizes, anomaly rates, PCA plots of how separable the anomalies are, the most informative features, and a check of the feature scaling.
+`notebooks/data_exploration.ipynb` looks at the nine datasets before any training: dataset sizes, anomaly rates, PCA plots of how separable the anomalies are, the most informative features, and a check of the feature scaling.
 
 To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
 
@@ -102,7 +106,7 @@ Unless listed, every other parameter is the library default.
 | Train/test split | Stratified 70/30 (`train_test_split`, `stratify=y`) | Same |
 | Seeds | 1, 2, 3; results are the mean (and std) over seeds | Same |
 | Label fractions | 1, 5, 10, 25, 50, 100% of training anomalies; unsupervised methods use none | Also 0% and 75% |
-| Small label counts | `max(1, int(fraction x anomalies))`: at least 1 labeled anomaly | `int(...)` by default, so small datasets can get 0 labels |
+| Small label counts | `max(1, int(fraction x anomalies))`: rounds down, at least 1 labeled anomaly | `ceil(fraction x anomalies)`: rounds up (its experiments call the generator with `at_least_one_labeled=True`), so also at least 1; differs from ours by at most 1 label |
 | Unlabeled anomalies | Stay in training data, labeled 0 | Same |
 | Feature scaling | `StandardScaler` fitted on training data only | `MinMaxScaler` fitted on training data only |
 | Small datasets (< 1,000 samples) | Used as provided | Resampled with replacement up to 1,000 samples |
@@ -131,6 +135,8 @@ Notes on deliberate choices:
   details (population standard deviation in the loss, Glorot uniform initial weights, zero biases).
 * **No hyperparameter tuning:** all methods use default or paper settings, as in ADBench and our
   proposal, since tuning unsupervised methods without labels is not realistic.
+
+
 
 ## Data quality
 
@@ -178,13 +184,46 @@ Notes:
 `python src/plot_results.py` reads every results CSV in `results/` (via `src/load_results.py`)
 and saves two figures to `results/figures/`:
 
-* `auc_roc_vs_label_fraction.png`
-* `auc_pr_vs_label_fraction.png`
+* `auc_roc_vs_label_fraction.png` and `auc_pr_vs_label_fraction.png`: one panel per dataset
+* `median_auc_roc_all_datasets.png`: median across all datasets
+* `larger_datasets_1pct.png`: every method at 1% labels on the larger datasets
 
-Each has one panel per dataset and one line per algorithm (mean of 3 seeds). Unsupervised
+`notebooks/data_exploration.ipynb` also saves `labeled_anomalies_per_fraction.png`.
+
+The two per-dataset figures have one panel per dataset and one line per algorithm (mean of 3 seeds). Unsupervised
 methods are flat dashed lines, and the AUC-PR figure marks the random-guess level (the
 dataset's anomaly ratio). A new algorithm appears automatically once its runner writes a
 results CSV in the shared format. Re-run the script after adding or updating results.
+
+## Results and comparison with the paper
+
+Median AUC-ROC across all 9 datasets (mean of 3 seeds per dataset), the same summary
+ADBench uses.
+
+| Method | Category | 1% | 5% | 10% | 25% | 50% | 100% |
+|---|---|---|---|---|---|---|---|
+| XGBOD | Semi-supervised | **79.2** | **88.5** | **90.7** | **94.2** | 95.4 | 96.7 |
+| DevNet | Semi-supervised | 69.5 | 83.3 | 86.8 | 88.9 | 90.3 | 94.5 |
+| XGBoost | Supervised | 76.5 | 82.5 | 86.0 | 91.6 | 94.5 | 97.3 |
+| Random Forest | Supervised | 60.1 | 80.3 | 85.3 | 91.8 | **96.3** | **97.4** |
+| ECOD | Unsupervised | 78.4 | | | | | |
+| IForest | Unsupervised | 70.8 | | | | | |
+
+![Median AUC-ROC across all datasets](results/figures/median_auc_roc_all_datasets.png)
+
+| Paper's finding (Angle I) | Our result | Match |
+|---|---|---|
+| With 1% labeled anomalies, semi-supervised methods beat the best unsupervised method | XGBOD 79.2% vs ECOD 78.4%: holds for XGBOD, narrowly. DevNet (69.5%) does not | Yes for XGBOD |
+| Semi-supervised median at 1% is about 75.6% | XGBOD 79.2%, DevNet 69.5% | Close |
+| Semi-supervised methods are best at low label rates | XGBOD is the best method from 1% to 25% | Yes |
+| Supervised methods need more labels to beat unsupervised ones | Random Forest is lowest at 1% (60.1%); both supervised methods pass ECOD at 5% | Yes |
+| Supervised methods catch up with more labels | Random Forest is best at 50% and 100% | Yes |
+| All methods converge with full labels | 94.5 to 97.4% at 100% | Yes |
+
+Most findings reproduce. With 1% labels, XGBOD narrowly beats the best unsupervised
+method across all 9 datasets; the advantage comes from the larger datasets, where 1%
+gives 9 to 46 labeled anomalies instead of 1 to 3. Full analysis:
+[docs/paper_comparison.md](docs/paper_comparison.md).
 
 ## Results explorer (web app)
 
