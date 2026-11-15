@@ -179,6 +179,36 @@ Notes:
   sampler, training and scoring.
 
 
+## Protocol comparison with ADBench's data procedure
+
+Our main results keep the datasets as provided, round the labeled count down (minimum 1) and
+use StandardScaler. ADBench rounds up, uses min-max scaling, resamples datasets under 1,000
+rows up to 1,000 and subsamples datasets over 10,000 rows. To measure what each difference
+does, `src/compare_protocols.py` re-runs every method under three variants, adding one
+ADBench step at a time:
+
+```
+python src/compare_protocols.py                 # about 7 minutes on 10 cores
+python src/compare_protocols.py --jobs 4        # fewer cores
+python src/compare_protocols.py --summary-only  # rebuild the table from saved results
+```
+
+Results are saved to `results_comparison/`, separate from `results/`, so the main tables,
+figures and app are unchanged. The summary is in
+[docs/protocol_comparison.md](docs/protocol_comparison.md). Median AUC-ROC at 1% labels:
+
+| Setup | XGBOD | DevNet | XGBoost | Random Forest | ECOD |
+|---|---|---|---|---|---|
+| Ours (main results) | 79.2 | 69.5 | 76.5 | 60.1 | 78.4 |
+| Labeled count rounded up | 80.8 | 71.6 | 74.5 | 61.6 | 78.4 |
+| + min-max scaling | 81.0 | 71.7 | 74.5 | 61.6 | 78.4 |
+| ADBench's full procedure | 76.6 | 77.5 | 74.5 | 60.0 | 75.8 |
+
+Under ADBench's full procedure both semi-supervised methods beat the best unsupervised
+method at 1%, as the paper reports. The gain for DevNet comes from the resampling step.
+Resampling also places copies of training rows in the test set, which pushes the tree-based
+methods to 99 to 100% on the small datasets at high label fractions.
+
 ## Plots
 
 `python src/plot_results.py` reads every results CSV in `results/` (via `src/load_results.py`)

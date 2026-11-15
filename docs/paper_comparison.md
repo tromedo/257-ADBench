@@ -58,3 +58,6 @@ datasets may also play a role.
 See "Settings and hyperparameters" in the README for every setting that differs from
 ADBench (scaling, labeled-count rounding, 75% fraction, resampling, subsampling).
 Notes on the unsupervised baselines are in [unsupervised_baselines.md](unsupervised_baselines.md).
+
+[protocol_comparison.md](protocol_comparison.md) measures what each of those differences does,
+by re-running every method with ADBench's rounding, scaling and resampling added one step at a time.
