@@ -144,6 +144,9 @@ Notes on deliberate choices:
 There are no missing values. Annthyroid, Breastw, Cardiotocography and Magic Gamma contain duplicate rows;
 following ADBench, we keep the datasets as provided and do not remove them. The script also
 shows how many test rows also appear in the training set, which matters most for Breastw.
+For the four datasets under 1,000 rows, the last column shows the same count under ADBench's
+resampling: 76% of test rows (Breastw) to 100% (Lymphography, Hepatitis) also appear in the
+training set, against 0 to 38% with the datasets as provided.
 
 ## Running the experiments
 
