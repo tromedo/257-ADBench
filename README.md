@@ -27,10 +27,11 @@ Metrics: AUC-ROC and AUC-PR.
 
 ```
 data/       downloaded .npz datasets (not committed)
-docs/       proposal, paper comparison, unsupervised baselines notes
+docs/       paper comparison, protocol comparison, unsupervised baselines notes
 notebooks/  data exploration
 src/        shared data module, algorithm runners, plots, app, reproduce script
 results/    results CSVs (larger datasets in results/larger_dataset/) and figures/
+results_comparison/  results of the protocol comparison with ADBench's data procedure
 ```
 
 ## Setup (one time)
@@ -215,7 +216,7 @@ methods to 99 to 100% on the small datasets at high label fractions.
 ## Plots
 
 `python src/plot_results.py` reads every results CSV in `results/` (via `src/load_results.py`)
-and saves two figures to `results/figures/`:
+and saves four figures to `results/figures/`:
 
 * `auc_roc_vs_label_fraction.png` and `auc_pr_vs_label_fraction.png`: one panel per dataset
 * `median_auc_roc_all_datasets.png`: median across all datasets
@@ -253,8 +254,9 @@ ADBench uses.
 | Supervised methods catch up with more labels | Random Forest is best at 50% and 100% | Yes |
 | All methods converge with full labels | 94.5 to 97.4% at 100% | Yes |
 
-Most findings reproduce. With 1% labels, XGBOD narrowly beats the best unsupervised
-method across all 9 datasets; the advantage comes from the larger datasets, where 1%
+Most findings reproduce. With 1% labels, XGBOD's median across the 9 datasets is narrowly
+above the best unsupervised method's (it wins on 4 of the 9 individually); the advantage
+comes from the larger datasets, where 1%
 gives 9 to 46 labeled anomalies instead of 1 to 3. Full analysis:
 [docs/paper_comparison.md](docs/paper_comparison.md).
 
