@@ -95,6 +95,11 @@ order, and stops at the first failure. Most of the full run is XGBOD on the larg
 With the pinned versions in `requirements.txt`, the regenerated results CSVs should match the
 committed ones, so `git status` should show no changes afterwards.
 
+The protocol comparison is not part of this command, because it is a separate experiment that
+uses many CPU cores at once and does not affect the main results. Run it separately with
+`python src/compare_protocols.py` (about 7 minutes on 10 cores); see
+[Protocol comparison with ADBench's data procedure](#protocol-comparison-with-adbenchs-data-procedure).
+
 ## Settings and hyperparameters
 
 All values below are what the code actually runs with (pinned versions in `requirements.txt`).
