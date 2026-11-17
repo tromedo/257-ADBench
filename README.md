@@ -46,7 +46,7 @@ Prerequisites:
 1. Clone the repo and go into it:
 
 ```
-git clone git@github.com:tromedo/257-ADBench.git
+git clone https://github.com/tromedo/257-ADBench.git
 cd 257-ADBench
 ```
 
@@ -58,7 +58,7 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Download the six datasets into `data/` (they are not stored in git):
+3. Download the nine datasets into `data/` (they are not stored in git):
 
 ```
 python src/download_data.py
@@ -92,8 +92,9 @@ python src/reproduce.py --plots-only    # redraw figures from existing results
 
 Runs the dataset download, the data quality check, every experiment runner and the plots, in
 order, and stops at the first failure. Most of the full run is XGBOD on the larger datasets.
-With the pinned versions in `requirements.txt`, the regenerated results CSVs should match the
-committed ones, so `git status` should show no changes afterwards.
+With the pinned versions in `requirements.txt`, the regenerated AUC-ROC and AUC-PR values should
+match the committed ones (up to about 1e-5 of floating-point noise in Random Forest). Only the
+`runtime_sec` column differs between runs, so `git status` will still list the results CSVs as changed.
 
 The protocol comparison is not part of this command, because it is a separate experiment that
 uses many CPU cores at once and does not affect the main results. Run it separately with
@@ -253,7 +254,7 @@ ADBench uses.
 | Paper's finding (Angle I) | Our result | Match |
 |---|---|---|
 | With 1% labeled anomalies, semi-supervised methods beat the best unsupervised method | XGBOD 79.2% vs ECOD 78.4%: holds for XGBOD, narrowly. DevNet (69.5%) does not | Yes for XGBOD |
-| Semi-supervised median at 1% is about 75.6% | XGBOD 79.2%, DevNet 69.5% | Close |
+| Semi-supervised median at 1% is about 75.6% (over the paper's 57 datasets) | XGBOD 79.2%, DevNet 69.5% | Close |
 | Semi-supervised methods are best at low label rates | XGBOD is the best method from 1% to 25% | Yes |
 | Supervised methods need more labels to beat unsupervised ones | Random Forest is lowest at 1% (60.1%); both supervised methods pass ECOD at 5% | Yes |
 | Supervised methods catch up with more labels | Random Forest is best at 50% and 100% | Yes |

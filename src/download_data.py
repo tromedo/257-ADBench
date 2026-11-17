@@ -1,4 +1,4 @@
-"""Download the six ADBench datasets used in this project into data/.
+"""Download the nine ADBench datasets used in this project into data/.
 
 Run from the repo root:
     python src/download_data.py
