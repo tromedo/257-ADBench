@@ -5,6 +5,10 @@ We test how much a small fraction of labeled anomalies improves detection compar
 
 Team: Manisha Varthamanan, Dipti Ghiya, Sriram Sridhar
 
+**Key findings:** With 1% labeled anomalies, XGBOD (median AUC-ROC 79.2) narrowly beats the best
+unsupervised method, ECOD (78.4), while DevNet (69.5) does not. On three larger datasets, where 1%
+means 9 to 46 labels instead of 1 to 3, both semi-supervised methods win on every seed.
+
 ## Scope
 
 Datasets (ADBench Classical): Annthyroid, Cardiotocography, Breastw, Lymphography, Vertebral, Hepatitis,
@@ -75,11 +79,20 @@ With seed 1 you should see, for example, `annthyroid train= 5040 (anomalies 374)
 
 In later sessions you only need `cd 257-ADBench` and `source .venv/bin/activate`.
 
+**Troubleshooting:**
+
+* **`torch` fails to install on a Mac.** PyTorch 2.14 has no build for Intel (x86_64) Python,
+  which is what an older Anaconda install runs even on an Apple Silicon Mac. Check with
+  `python -c "import platform; print(platform.machine())"`: it should print `arm64`. If it prints
+  `x86_64`, install an arm64 Python (python.org or Homebrew). Everything except DevNet runs without torch.
+* **Only want to browse the results?** The app needs no model libraries:
+  `pip install streamlit altair pandas numpy matplotlib scikit-learn`, then `streamlit run src/app.py`.
+
 ## Data Exploration
 
 `notebooks/data_exploration.ipynb` looks at the nine datasets before any training: dataset sizes, anomaly rates, PCA plots of how separable the anomalies are, the most informative features, and a check of the feature scaling.
 
-To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells. 
+To run it: open the notebook in any notebook editor, select `.venv` Python as the kernel, and run all cells.
 
 
 ## Reproduce everything (one command)
